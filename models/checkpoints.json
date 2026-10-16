@@ -1,0 +1,46 @@
+{
+  "_note": "References only. Checkpoints stay where they are; nothing is copied. Change 'dir' here, or set the environment variable named in 'env'.",
+  "datasets": {
+    "ls_ssdd": {
+      "label": "LS-SSDD-v1.0",
+      "dir": "C:/LS-SSDD-v1.0",
+      "env": "LS_SSDD_DIR",
+      "task": "ship"
+    },
+    "masati": {
+      "label": "MASATI",
+      "dir": "C:/MASATI",
+      "env": "MASATI_DIR",
+      "task": "ship"
+    },
+    "levir_cd": {
+      "label": "LEVIR-CD",
+      "task": "change",
+      "dir": "C:/",
+      "env": "LEVIR_DIR"
+    }
+  },
+  "files": {
+    "ls_ssdd": {
+      "yolo11": "best_Yolo11_ls.pt",
+      "rtdetr": "rtdetr_ssdd_best.pt",
+      "detr": "detr_ssdd_best.pth",
+      "efficientdet": "efficientdet_ssdd_best.pth",
+      "fasterrcnn": "fasterrcnn_ssdd_best.pth",
+      "retinanet": "retinanet_ssdd_best.pth",
+      "ssd": "ssd300_ssdd_best.pth"
+    },
+    "masati": {
+      "yolo11": "MASATI_YOLO11_Best.pt",
+      "detr": "detr_boat_best.pth",
+      "efficientdet": "efficientdet_boat_best.pth",
+      "fasterrcnn": "fasterrcnn_boat_latest.pth",
+      "retinanet": "retinanet_boat_latest.pth",
+      "rtdetr": "rtdetr_boat_runs_best.pt",
+      "ssd": "ssd_boat_latest.pth"
+    },
+    "levir_cd": {
+      "levir_cd": "LEVIR_CD_Trained_Model"
+    }
+  }
+}
