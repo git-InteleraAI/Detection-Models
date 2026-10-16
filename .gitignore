@@ -47,6 +47,8 @@ build/
 *.log
 *.tmp
 *.temp
+.cache/
+*/.cache/
 checkpoint_report.txt
 
 # OS Generated Files

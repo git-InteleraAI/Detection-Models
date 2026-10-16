@@ -34,6 +34,11 @@ def _rfdetr_change(ckpt, spec):
     return RfDetrChangeRunner(spec)
 
 
+def _siam_unet(ckpt, spec):
+    from .siam_unet_runner import SiamUnetRunner
+    return SiamUnetRunner(ckpt, spec)
+
+
 RUNNERS = {
     "ultralytics_yolo": _ultralytics("yolo"),
     "ultralytics_rtdetr": _ultralytics("rtdetr"),
@@ -43,6 +48,7 @@ RUNNERS = {
     "efficientdet": _effdet,
     "detr": _detr,
     "rfdetr_change": _rfdetr_change,      # change detection: runner.predict_pair(before, after, conf)
+    "siam_unet": _siam_unet,              # LEVIR-CD trained model runner
 }
 _CACHE = {}
 

@@ -7,4 +7,5 @@ ultralytics>=8.3.0
 effdet>=0.4.1
 timm
 transformers>=5.9,<6
-huggingface-hub>=1.23,<2
+huggingface-hub>=0.23
+opencv-python-headless>=4.8.0

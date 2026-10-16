@@ -63,19 +63,38 @@ def threshold_for(spec, conf):
     return value
 
 
-def open_image(raw: bytes, what: str = "uploaded file") -> Image.Image:
+import hf_downloader
+
+MAX_IMAGE_SIZE = 25 * 1024 * 1024  # 25 MB limit
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/bmp", "image/webp"}
+
+
+def open_image(raw: bytes, what: str = "uploaded file", content_type: str | None = None) -> Image.Image:
+    if not raw or len(raw) == 0:
+        raise HTTPException(400, f"The {what} is empty.")
+    if len(raw) > MAX_IMAGE_SIZE:
+        raise HTTPException(400, f"The {what} exceeds the 25 MB size limit.")
+    if content_type and content_type.lower() not in ALLOWED_IMAGE_TYPES and not content_type.startswith("image/"):
+        raise HTTPException(400, f"The {what} has unsupported type '{content_type}'. Use JPEG, PNG, or WebP.")
     try:
+        buf = io.BytesIO(raw)
+        img = Image.open(buf)
+        img.verify()
         return Image.open(io.BytesIO(raw)).convert("RGB")
-    except (UnidentifiedImageError, OSError):
-        raise HTTPException(400, f"The {what} is not a readable image (use PNG, JPG, or similar).")
+    except (UnidentifiedImageError, OSError, Exception):
+        raise HTTPException(400, f"The {what} is corrupted or not a readable image (use PNG, JPG, or similar).")
 
 
 def run(dataset: str, model: str, spec, action):
     try:
-        runner = inference.get_runner(f"{dataset}/{model}", spec, reg.checkpoint_path(dataset, model))
+        ckpt_p = reg.checkpoint_path(dataset, model)
+        runner = inference.get_runner(f"{dataset}/{model}", spec, ckpt_p)
         start = time.perf_counter()
         prediction = action(runner)
         return prediction, (time.perf_counter() - start) * 1000
+    except hf_downloader.CheckpointDownloadError as e:
+        log.warning("Hugging Face checkpoint error: %s", e)
+        raise HTTPException(400, str(e))
     except CheckpointMissing as e:
         raise HTTPException(404, str(e))
     except NotConfigured as e:
@@ -130,10 +149,19 @@ def models(dataset_id: str):
         raise HTTPException(404, f"Unknown dataset '{dataset_id}'.")
     out = []
     for s in specs:
-        ckpt = reg.checkpoint_path(dataset_id, s.id)
-        out.append({"id": s.id, "label": s.label, "ready": inference.is_ready(s),
-                    "checkpoint_found": True if ckpt is None else ckpt.exists(),   # None = downloaded model
-                    "default_conf": s.conf, "note": s.note or None})
+        available = reg.is_checkpoint_available(dataset_id, s.id)
+        note = s.note or ""
+        if not available and reg.get_hf_rel_path(dataset_id, s.id):
+            if not hf_downloader.is_hf_configured():
+                note = (note + " " if note else "") + "Requires HF_TOKEN environment variable on Render."
+        out.append({
+            "id": s.id,
+            "label": s.label,
+            "ready": inference.is_ready(s),
+            "checkpoint_found": available,
+            "default_conf": s.conf,
+            "note": note or None,
+        })
     return out
 
 
@@ -179,7 +207,7 @@ def predict(dataset: str = Form(...), model: str = Form(...), conf: float | None
         raw = path.read_bytes()
     else:
         raise HTTPException(400, "Choose a sample image or upload one.")
-    image = open_image(raw)
+    image = open_image(raw, "input image", file.content_type if file else None)
 
     prediction, ms = run(dataset, model, spec, lambda r: r.predict(image, threshold))
     return build_response("ship", dataset, spec, prediction, ms, image.size, threshold)
@@ -198,12 +226,15 @@ def predict_change(dataset: str = Form(...), model: str = Form(...), conf: float
         if a is None or b is None:
             raise HTTPException(404, f"Sample pair '{sample}' needs a file with that name in both samples/{dataset}/A and /B.")
         raw_before, raw_after = a.read_bytes(), b.read_bytes()
+        ct_before, ct_after = None, None
     elif before is not None and after is not None:
         raw_before, raw_after = before.file.read(), after.file.read()
+        ct_before, ct_after = before.content_type, after.content_type
     else:
         raise HTTPException(400, "Choose a sample pair, or upload both the before and the after image.")
 
-    img_before, img_after = open_image(raw_before, "before image"), open_image(raw_after, "after image")
+    img_before = open_image(raw_before, "before image", ct_before)
+    img_after = open_image(raw_after, "after image", ct_after)
     if img_before.size != img_after.size:
         raise HTTPException(400, f"The before image is {img_before.width}x{img_before.height} but the after image is "
                                  f"{img_after.width}x{img_after.height}. They must be the same size and aligned.")

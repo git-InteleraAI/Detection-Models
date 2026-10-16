@@ -55,9 +55,9 @@ MODELS = {
         ModelSpec("ssd", "SSD", "ssd", conf=0.25, class_name=BOAT, nms_iou=0.40),
     ],
     "levir_cd": [
-        # Your trained model. No runner yet: its architecture and preprocessing are not known.
-        ModelSpec("levir_cd", "LEVIR-CD trained model", "levir_cd", conf=0.50,
-                  note="Setup pending: needs the model's architecture and preprocessing (see the checkpoint report)."),
+        # Trained Siamese U-Net (FC-Siam-conc) change detection model.
+        ModelSpec("levir_cd", "LEVIR-CD trained model", "siam_unet", conf=0.50,
+                  note="Trained Siamese U-Net (FC-Siam-conc) dual-encoder change detection model."),
         # Pretrained model from Hugging Face, ported from your Kaggle notebook (default threshold 0.18).
         ModelSpec("rfdetr_buildings", "RF-DETR new-building detection", "rfdetr_change", conf=0.18,
                   note="Downloads the pretrained model from Hugging Face on first use (needs internet). "
@@ -91,10 +91,73 @@ def get_spec(dataset_id: str, model_id: str) -> ModelSpec:
     raise KeyError(model_id)
 
 
-def checkpoint_path(dataset_id: str, model_id: str):
-    """Local checkpoint path, or None for models that are downloaded (Hugging Face)."""
+def local_checkpoint_path(dataset_id: str, model_id: str) -> Path | None:
+    """Return local path from environment variable or local dir if configured and exists."""
+    name = _CFG["files"].get(dataset_id, {}).get(model_id)
+    if name is None:
+        return None
+    ds = _CFG["datasets"].get(dataset_id)
+    if not ds:
+        return None
+    folder_str = os.environ.get(ds["env"], ds.get("dir", ""))
+    if not folder_str:
+        return None
+    candidate = Path(folder_str) / name
+    return candidate if candidate.exists() else None
+
+
+def get_hf_rel_path(dataset_id: str, model_id: str) -> str | None:
+    """Relative path within the private Hugging Face repository."""
+    return _CFG.get("hf_files", {}).get(dataset_id, {}).get(model_id)
+
+
+def is_checkpoint_available(dataset_id: str, model_id: str) -> bool:
+    """Determine whether the checkpoint is available locally, already cached, or downloadable."""
+    spec = get_spec(dataset_id, model_id)
+    if spec.config.get("hub_id"):
+        return True
+
+    # 1. Local filesystem path exists
+    local_p = local_checkpoint_path(dataset_id, model_id)
+    if local_p is not None:
+        return True
+
+    # 2. Check if HF relative path is defined
+    rel_path = get_hf_rel_path(dataset_id, model_id)
+    if not rel_path:
+        return False
+
+    # 3. Check if already cached locally or if HF_TOKEN is configured for on-demand download
+    try:
+        import hf_downloader
+        if hf_downloader.is_cached(dataset_id, model_id, rel_path):
+            return True
+        return hf_downloader.is_hf_configured()
+    except ImportError:
+        return False
+
+
+def checkpoint_path(dataset_id: str, model_id: str) -> Path | None:
+    """Resolve the checkpoint path: checks local disk first, then downloads from Hugging Face if needed."""
+    spec = get_spec(dataset_id, model_id)
+    if spec.config.get("hub_id"):
+        return None
+
+    # 1. Check local path
+    local_p = local_checkpoint_path(dataset_id, model_id)
+    if local_p is not None:
+        return local_p
+
+    # 2. Check Hugging Face mapping
+    rel_path = get_hf_rel_path(dataset_id, model_id)
+    if rel_path:
+        import hf_downloader
+        return hf_downloader.download_checkpoint(dataset_id, model_id, rel_path)
+
+    # 3. Fallback to default expected path for error messaging
     name = _CFG["files"].get(dataset_id, {}).get(model_id)
     if name is None:
         return None
     ds = _CFG["datasets"][dataset_id]
     return Path(os.environ.get(ds["env"], ds["dir"])) / name
+

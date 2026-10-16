@@ -1,5 +1,6 @@
 {
-  "_note": "References only. Checkpoints stay where they are; nothing is copied. Change 'dir' here, or set the environment variable named in 'env'.",
+  "_note": "Local fallback directories and private Hugging Face checkpoint paths.",
+  "hf_repo_id": "IntelEra/model-checkpoints",
   "datasets": {
     "ls_ssdd": {
       "label": "LS-SSDD-v1.0",
@@ -41,6 +42,29 @@
     },
     "levir_cd": {
       "levir_cd": "LEVIR_CD_Trained_Model"
+    }
+  },
+  "hf_files": {
+    "ls_ssdd": {
+      "yolo11": "models/ls_ssdd/best_Yolo11_ls.pt",
+      "rtdetr": "models/ls_ssdd/rtdetr_ssdd_best.pt",
+      "detr": "models/ls_ssdd/detr_ssdd_best.pth",
+      "efficientdet": "models/ls_ssdd/efficientdet_ssdd_best.pth",
+      "fasterrcnn": "models/ls_ssdd/fasterrcnn_ssdd_best.pth",
+      "retinanet": "models/ls_ssdd/retinanet_ssdd_best.pth",
+      "ssd": "models/ls_ssdd/ssd300_ssdd_best.pth"
+    },
+    "masati": {
+      "yolo11": "models/masati/yolo11/best",
+      "detr": "models/masati/detr_boat_best.pth",
+      "efficientdet": "models/masati/efficientdet_boat_best.pth",
+      "fasterrcnn": "models/masati/fasterrcnn_boat_latest.pth",
+      "retinanet": "models/masati/retinanet_boat_latest.pth",
+      "rtdetr": "models/masati/rtdetr_boat_runs_best.pt",
+      "ssd": "models/masati/ssd_boat_latest.pth"
+    },
+    "levir_cd": {
+      "levir_cd": "models/levir_cd/LEVIR_CD_Trained_Model.zip"
     }
   }
 }
