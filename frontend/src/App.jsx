@@ -25,6 +25,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [connecting, setConnecting] = useState(true);
+
   const isChange = task === "change";
   const urls = !sample
     ? {}
@@ -33,9 +35,19 @@ export default function App() {
     : { image: `${API_BASE}/api/samples/${dataset}/${enc(sample)}` };
 
   useEffect(() => {
+    setConnecting(true);
     api("/api/tasks")
-      .then(setTasks)
-      .catch(() => setError("Cannot reach the backend. Start it with: uvicorn main:app --port 8000"));
+      .then(async (tList) => {
+        setTasks(tList);
+        setConnecting(false);
+        if (tList.length > 0) {
+          await chooseTask(tList[0].id);
+        }
+      })
+      .catch(() => {
+        setConnecting(false);
+        setError("Cannot reach the backend. If the free Render service was idle, it takes ~30-50s to wake up from sleep. Please click retry below.");
+      });
   }, []);
 
   function clearImages() {
@@ -55,7 +67,7 @@ export default function App() {
     try {
       const list = await api(`/api/datasets?task=${id}`);
       setDatasets(list);
-      if (list.length === 1) await chooseDataset(list[0].id);
+      if (list.length > 0) await chooseDataset(list[0].id);
     } catch (e) {
       setError(e.message);
     }
@@ -68,11 +80,18 @@ export default function App() {
     setSamples([]);
     setResult(null);
     setError("");
-    setSample(""); // a sample from the previous dataset no longer applies
+    setSample("");
     try {
       const [m, s] = await Promise.all([api(`/api/datasets/${id}/models`), api(`/api/datasets/${id}/samples`)]);
       setModels(m);
       setSamples(s);
+      if (m.length > 0) {
+        setModel(m[0].id);
+        setConf(String(m[0].default_conf));
+      }
+      if (s.length > 0) {
+        setSample(s[0]);
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -112,6 +131,13 @@ export default function App() {
         <h1>Satellite model tester</h1>
         <p>Pick a task, a dataset and a model, choose your image(s), and see what the trained model finds.</p>
       </header>
+
+      {connecting && (
+        <div className="status-banner connecting">
+          <span className="spinner"></span>
+          <span>Connecting to backend server... (Render free tier wakes up in ~30–50s if idle)</span>
+        </div>
+      )}
 
       <section className="step">
         <h2><span className="num">1</span> Task</h2>
@@ -203,7 +229,14 @@ export default function App() {
             : "The first run of each model is slower because the model has to load."}
         </p>
       )}
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && (
+        <div className="error" role="alert">
+          <div>{error}</div>
+          <button className="choice" style={{ marginTop: "10px", background: "#ffffff", padding: "6px 12px", fontSize: "0.9rem" }} onClick={() => window.location.reload()}>
+            🔄 Retry Connection
+          </button>
+        </div>
+      )}
 
       {result && (
         <section className="results">
