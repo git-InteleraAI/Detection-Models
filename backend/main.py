@@ -2,6 +2,7 @@ import base64
 import io
 import logging
 import time
+import os
 from collections import Counter
 from pathlib import Path
 
@@ -16,8 +17,15 @@ from inference import CheckpointMissing, NotConfigured
 
 log = logging.getLogger("tester")
 app = FastAPI(title="Model Tester API")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"],
-                   allow_methods=["*"], allow_headers=["*"])
+
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"] if "*" in allowed_origins else allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # samples/<ship dataset id>/*.jpg            one image per file
 # samples/<change dataset id>/A/*.png         "before" images   (same file names in B = "after")

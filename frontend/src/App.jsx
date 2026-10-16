@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+
 async function api(url, options) {
-  const res = await fetch(url, options);
+  const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+  const res = await fetch(fullUrl, options);
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.detail || `Request failed (${res.status})`);
   return body;
@@ -26,8 +29,8 @@ export default function App() {
   const urls = !sample
     ? {}
     : isChange
-    ? { before: `/api/pair-samples/${dataset}/A/${enc(sample)}`, after: `/api/pair-samples/${dataset}/B/${enc(sample)}` }
-    : { image: `/api/samples/${dataset}/${enc(sample)}` };
+    ? { before: `${API_BASE}/api/pair-samples/${dataset}/A/${enc(sample)}`, after: `${API_BASE}/api/pair-samples/${dataset}/B/${enc(sample)}` }
+    : { image: `${API_BASE}/api/samples/${dataset}/${enc(sample)}` };
 
   useEffect(() => {
     api("/api/tasks")
